@@ -3,6 +3,16 @@
 import { useEffect, useState, useCallback } from "react";
 import { registerToolSafely } from "@/lib/webmcp/registerToolSafely";
 
+const STATUS_META = {
+  submitted: { label: "Submitted", color: "slate" },
+  awaiting_documents: { label: "Awaiting documents", color: "amber" },
+  documents_complete: { label: "Documents complete", color: "teal" },
+  estimate_submitted: { label: "Estimate under review", color: "amber" },
+  ready_for_settlement: { label: "Ready for settlement", color: "teal" },
+  settled: { label: "Settled", color: "teal" },
+  settlement_declined: { label: "Settlement declined", color: "red" }
+};
+
 export default function InsurerPage() {
   const [claims, setClaims] = useState([]);
 
@@ -36,9 +46,7 @@ export default function InsurerPage() {
           required: ["claim_id"]
         },
         execute: async (input) => {
-          const res = await fetch(`/api/claims/${input.claim_id}/check-coverage`, {
-            method: "POST"
-          });
+          const res = await fetch(`/api/claims/${input.claim_id}/check-coverage`, { method: "POST" });
           const data = await res.json();
           refreshClaims();
           return data;
@@ -59,9 +67,7 @@ export default function InsurerPage() {
           required: ["claim_id"]
         },
         execute: async (input) => {
-          const res = await fetch(`/api/claims/${input.claim_id}/request-docs`, {
-            method: "POST"
-          });
+          const res = await fetch(`/api/claims/${input.claim_id}/request-docs`, { method: "POST" });
           const data = await res.json();
           refreshClaims();
           return data;
@@ -82,9 +88,7 @@ export default function InsurerPage() {
           required: ["claim_id"]
         },
         execute: async (input) => {
-          const res = await fetch(`/api/claims/${input.claim_id}/estimate/check`, {
-            method: "POST"
-          });
+          const res = await fetch(`/api/claims/${input.claim_id}/estimate/check`, { method: "POST" });
           const data = await res.json();
           refreshClaims();
           return data;
@@ -96,39 +100,42 @@ export default function InsurerPage() {
   }, [refreshClaims]);
 
   return (
-    <main style={{ maxWidth: 720, margin: "0 auto", padding: "2rem", fontFamily: "system-ui" }}>
-      <h1>Insurer</h1>
-      <p style={{ color: "#666" }}>
+    <main className="container" style={{ paddingTop: "2.5rem", paddingBottom: "3rem" }}>
+      <h1 style={{ fontSize: "1.8rem" }}>Insurer</h1>
+      <p className="page-lead">
         Your agent checks coverage, requests required documents, and validates repair
         estimates against real policy terms — all visible below as claims come in.
       </p>
 
-      {claims.length === 0 && (
-        <p style={{ marginTop: "2rem", padding: "1rem", background: "#f5f5f5", borderRadius: 8 }}>
-          No claims yet.
-        </p>
-      )}
+      {claims.length === 0 && <div className="empty-state">No claims yet.</div>}
 
-      {claims.map((claim) => (
-        <div
-          key={claim.claim_id}
-          style={{ marginTop: "1.5rem", padding: "1rem", border: "1px solid #ddd", borderRadius: 8 }}
-        >
-          <h3>{claim.claim_id}</h3>
-          <p><strong>Status:</strong> {claim.status}</p>
-          <p><strong>Incident:</strong> {claim.incident.incident_type} — {claim.incident.description}</p>
-          {claim.requested_docs.length > 0 && (
-            <p><strong>Docs requested:</strong> {claim.requested_docs.join(", ")}</p>
-          )}
-          {claim.estimate && (
-            <p>
-              <strong>Estimate:</strong> ${claim.estimate.total.toFixed(2)} —{" "}
-              <strong>{claim.estimate_status}</strong>
-              {claim.estimate_review_reason ? ` (${claim.estimate_review_reason})` : ""}
-            </p>
-          )}
-        </div>
-      ))}
+      {claims.map((claim) => {
+        const meta = STATUS_META[claim.status] || { label: claim.status, color: "slate" };
+        return (
+          <div key={claim.claim_id} className="claim-panel">
+            <div className="claim-panel-header">
+              <span className="claim-id">{claim.claim_id}</span>
+              <span className={`status-chip ${meta.color}`}>{meta.label}</span>
+            </div>
+            <div className="claim-panel-body">
+              <p style={{ marginTop: 0 }}>
+                <strong>{claim.incident.incident_type}</strong> — {claim.incident.description}
+              </p>
+              {claim.requested_docs.length > 0 && (
+                <p style={{ color: "var(--ink-soft)" }}>
+                  Docs requested: {claim.requested_docs.join(", ")}
+                </p>
+              )}
+              {claim.estimate && (
+                <p style={{ color: "var(--ink-soft)" }}>
+                  Estimate: ${claim.estimate.total.toFixed(2)} — {claim.estimate_status}
+                  {claim.estimate_review_reason ? ` (${claim.estimate_review_reason})` : ""}
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </main>
   );
 }

@@ -3,6 +3,16 @@
 import { useEffect, useState, useCallback } from "react";
 import { registerToolSafely } from "@/lib/webmcp/registerToolSafely";
 
+const STATUS_META = {
+  submitted: { label: "Submitted", color: "slate" },
+  awaiting_documents: { label: "Awaiting documents", color: "amber" },
+  documents_complete: { label: "Documents complete", color: "teal" },
+  estimate_submitted: { label: "Estimate under review", color: "amber" },
+  ready_for_settlement: { label: "Ready for settlement", color: "teal" },
+  settled: { label: "Settled", color: "teal" },
+  settlement_declined: { label: "Settlement declined", color: "red" }
+};
+
 export default function PolicyholderPage() {
   const [claim, setClaim] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -16,8 +26,6 @@ export default function PolicyholderPage() {
     }
   }, []);
 
-  // Poll for updates while a claim is active, so the human view stays
-  // in sync as the insurer/repair-shop agents act on their own pages.
   useEffect(() => {
     if (!claim?.claim_id) return;
     const interval = setInterval(() => refreshClaim(claim.claim_id), 2000);
@@ -99,13 +107,6 @@ export default function PolicyholderPage() {
       })
     );
 
-    // Deliberately NOT auto-executable in the same way as the others.
-    // The tool exists so an agent can check whether a claim is ready to
-    // settle, but the actual confirmation always requires the human
-    // clicking the button in this page's UI (see handleConfirm below).
-    // Registering it here documents the action for agent visibility and
-    // allows an agent to prompt the human, without letting an agent
-    // finalize money on someone's behalf autonomously.
     cleanups.push(
       registerToolSafely({
         name: "confirm_settlement",
@@ -153,68 +154,78 @@ export default function PolicyholderPage() {
     }
   };
 
+  const meta = claim ? STATUS_META[claim.status] || { label: claim.status, color: "slate" } : null;
+
   return (
-    <main style={{ maxWidth: 640, margin: "0 auto", padding: "2rem", fontFamily: "system-ui" }}>
-      <h1>Policyholder</h1>
-      <p style={{ color: "#666" }}>
+    <main className="container" style={{ paddingTop: "2.5rem", paddingBottom: "3rem" }}>
+      <h1 style={{ fontSize: "1.8rem" }}>Policyholder</h1>
+      <p className="page-lead">
         Your agent can file a claim and upload requested documents on your behalf.
         Final settlement always requires your confirmation below.
       </p>
 
       {!claim && (
-        <p style={{ marginTop: "2rem", padding: "1rem", background: "#f5f5f5", borderRadius: 8 }}>
+        <div className="empty-state">
           No active claim yet. Ask your agent to file an incident report to get started.
-        </p>
+        </div>
       )}
 
       {claim && (
-        <div style={{ marginTop: "2rem" }}>
-          <h2>Claim {claim.claim_id}</h2>
-          <p><strong>Status:</strong> {claim.status}</p>
-          <p><strong>Incident:</strong> {claim.incident.incident_type} on {claim.incident.date}</p>
-          <p>{claim.incident.description}</p>
-
-          {claim.requested_docs.length > 0 && (
-            <div style={{ marginTop: "1rem" }}>
-              <strong>Requested documents:</strong>
-              <ul>
-                {claim.requested_docs.map((d) => {
-                  const uploaded = claim.uploaded_docs.some((u) => u.doc_type === d);
-                  return (
-                    <li key={d}>
-                      {d} — {uploaded ? "✅ uploaded" : "⏳ pending"}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
-
-          {claim.estimate && (
-            <div style={{ marginTop: "1rem" }}>
-              <strong>Repair estimate:</strong> ${claim.estimate.total.toFixed(2)}
-              <br />
-              <strong>Review status:</strong> {claim.estimate_status}
-            </div>
-          )}
-
-          {claim.estimate_status === "approved" && claim.status !== "settled" && (
-            <div style={{ marginTop: "1.5rem", padding: "1rem", border: "2px solid #2563eb", borderRadius: 8 }}>
-              <p><strong>Your estimate has been approved. Confirm settlement?</strong></p>
-              <button onClick={() => handleConfirm(true)} disabled={loading} style={{ marginRight: 8 }}>
-                Confirm Settlement
-              </button>
-              <button onClick={() => handleConfirm(false)} disabled={loading}>
-                Decline
-              </button>
-            </div>
-          )}
-
-          {claim.status === "settled" && (
-            <p style={{ marginTop: "1rem", color: "green", fontWeight: "bold" }}>
-              ✅ Claim settled.
+        <div className="claim-panel">
+          <div className="claim-panel-header">
+            <span className="claim-id">{claim.claim_id}</span>
+            <span className={`status-chip ${meta.color}`}>{meta.label}</span>
+          </div>
+          <div className="claim-panel-body">
+            <p style={{ marginTop: 0 }}>
+              <strong>{claim.incident.incident_type}</strong> on {claim.incident.date}
             </p>
-          )}
+            <p style={{ color: "var(--ink-soft)" }}>{claim.incident.description}</p>
+
+            {claim.requested_docs.length > 0 && (
+              <div style={{ marginTop: "1rem" }}>
+                <strong>Requested documents</strong>
+                <ul className="doc-list">
+                  {claim.requested_docs.map((d) => {
+                    const uploaded = claim.uploaded_docs.some((u) => u.doc_type === d);
+                    return (
+                      <li key={d}>
+                        {d.replace(/_/g, " ")} — {uploaded ? "✅ uploaded" : "⏳ pending"}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+
+            {claim.estimate && (
+              <div style={{ marginTop: "1rem" }}>
+                <strong>Repair estimate:</strong> ${claim.estimate.total.toFixed(2)}
+                <br />
+                <span style={{ color: "var(--ink-soft)" }}>Review status: {claim.estimate_status}</span>
+              </div>
+            )}
+
+            {claim.estimate_status === "approved" && claim.status !== "settled" && (
+              <div className="confirm-box">
+                <p style={{ marginTop: 0, marginBottom: "0.75rem" }}>
+                  <strong>Your estimate has been approved. Confirm settlement?</strong>
+                </p>
+                <button className="btn" onClick={() => handleConfirm(true)} disabled={loading} style={{ marginRight: 8 }}>
+                  Confirm settlement
+                </button>
+                <button className="btn secondary" onClick={() => handleConfirm(false)} disabled={loading}>
+                  Decline
+                </button>
+              </div>
+            )}
+
+            {claim.status === "settled" && (
+              <p style={{ color: "var(--teal)", fontWeight: 600, marginTop: "1rem" }}>
+                ✅ Claim settled.
+              </p>
+            )}
+          </div>
         </div>
       )}
     </main>

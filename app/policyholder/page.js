@@ -27,6 +27,18 @@ export default function PolicyholderPage() {
   }, []);
 
   useEffect(() => {
+    (async () => {
+      const res = await fetch("/api/claims");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.claims && data.claims.length > 0) {
+          setClaim(data.claims[0]); // most recent, since listClaims() sorts newest first
+        }
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
     if (!claim?.claim_id) return;
     const interval = setInterval(() => refreshClaim(claim.claim_id), 2000);
     return () => clearInterval(interval);

@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { registerToolSafely } from "@/lib/webmcp/registerToolSafely";
 
+export const dynamic = "force-dynamic";
+
 const STATUS_META = {
   submitted: { label: "Submitted", color: "slate" },
   awaiting_documents: { label: "Awaiting documents", color: "amber" },

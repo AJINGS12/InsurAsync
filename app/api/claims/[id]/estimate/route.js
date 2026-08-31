@@ -2,15 +2,9 @@ import { NextResponse } from "next/server";
 import { getClaim, setEstimate, logEvent } from "@/lib/mockData/claimStore";
 import { rateCard } from "@/lib/mockData/rateCard";
 
-// POST /api/claims/:id/estimate
-// Backs the repair shop's `propose_estimate` WebMCP tool.
-// Calculates the total from the shop's REAL rate card (parts + labor)
-// instead of the agent inventing a number.
-//
-// Expected body: { line_items: [{ part: "front_bumper", labor_hours: 2 }, ...] }
 export async function POST(request, { params }) {
   const { id } = await params;
-  const claim = getClaim(id);
+  const claim = await getClaim(id);
 
   if (!claim) {
     return NextResponse.json({ error: "Claim not found" }, { status: 404 });
@@ -54,9 +48,9 @@ export async function POST(request, { params }) {
     );
   }
 
-  const updated = setEstimate(id, priced_items, total);
+  const updated = await setEstimate(id, priced_items, total);
   const result = { line_items: priced_items, total, status: updated.status };
 
-  logEvent(id, "repair_shop", "propose_estimate", result);
+  await logEvent(id, "repair_shop", "propose_estimate", result);
   return NextResponse.json(result);
 }

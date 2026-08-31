@@ -2,14 +2,9 @@ import { NextResponse } from "next/server";
 import { getClaim, setEstimateStatus, logEvent } from "@/lib/mockData/claimStore";
 import { policy } from "@/lib/mockData/policy";
 
-// POST /api/claims/:id/estimate/check
-// Backs the insurer's `check_estimate_against_policy` WebMCP tool.
-// Compares the repair shop's real estimate total against the REAL
-// per-incident coverage limit from the policy. This is the tool call
-// that can trigger a negotiation round (approve vs. flag for revision).
 export async function POST(request, { params }) {
   const { id } = await params;
-  const claim = getClaim(id);
+  const claim = await getClaim(id);
 
   if (!claim) {
     return NextResponse.json({ error: "Claim not found" }, { status: 404 });
@@ -40,8 +35,8 @@ export async function POST(request, { params }) {
         reason: `Estimate exceeds per-incident limit of $${limit} by $${Math.round((total - limit) * 100) / 100}`
       };
 
-  setEstimateStatus(id, withinLimit ? "approved" : "revision_requested", result.reason || null);
-  logEvent(id, "insurer", "check_estimate_against_policy", result);
+  await setEstimateStatus(id, withinLimit ? "approved" : "revision_requested", result.reason || null);
+  await logEvent(id, "insurer", "check_estimate_against_policy", result);
 
   return NextResponse.json(result);
 }

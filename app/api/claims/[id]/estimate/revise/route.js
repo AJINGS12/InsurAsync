@@ -2,13 +2,9 @@ import { NextResponse } from "next/server";
 import { getClaim, setEstimate, logEvent } from "@/lib/mockData/claimStore";
 import { rateCard } from "@/lib/mockData/rateCard";
 
-// POST /api/claims/:id/estimate/revise
-// Backs the repair shop's `revise_estimate` WebMCP tool.
-// Reuses the same real-rate-card calculation as the initial estimate,
-// called after the insurer's check_estimate_against_policy flags an issue.
 export async function POST(request, { params }) {
   const { id } = await params;
-  const claim = getClaim(id);
+  const claim = await getClaim(id);
 
   if (!claim) {
     return NextResponse.json({ error: "Claim not found" }, { status: 404 });
@@ -46,9 +42,9 @@ export async function POST(request, { params }) {
     });
   }
 
-  const updated = setEstimate(id, priced_items, total);
+  const updated = await setEstimate(id, priced_items, total);
   const result = { line_items: priced_items, total, status: updated.status };
 
-  logEvent(id, "repair_shop", "revise_estimate", result);
+  await logEvent(id, "repair_shop", "revise_estimate", result);
   return NextResponse.json(result);
 }

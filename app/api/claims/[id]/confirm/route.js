@@ -1,15 +1,9 @@
 import { NextResponse } from "next/server";
 import { getClaim, setSettlement, logEvent } from "@/lib/mockData/claimStore";
 
-// POST /api/claims/:id/confirm
-// Backs the policyholder's `confirm_settlement` WebMCP tool.
-// This is deliberately the ONLY tool that finalizes anything — it should
-// only ever be triggered by an explicit human click in the UI, never
-// called autonomously by an agent. See the policyholder page component
-// for how this is gated behind a human confirmation step.
 export async function POST(request, { params }) {
   const { id } = await params;
-  const claim = getClaim(id);
+  const claim = await getClaim(id);
 
   if (!claim) {
     return NextResponse.json({ error: "Claim not found" }, { status: 404 });
@@ -23,10 +17,10 @@ export async function POST(request, { params }) {
   }
 
   const { accept } = await request.json();
-  const updated = setSettlement(id, !!accept);
+  const updated = await setSettlement(id, !!accept);
 
   const result = { settled: !!accept, status: updated.status };
-  logEvent(id, "policyholder", "confirm_settlement", result);
+  await logEvent(id, "policyholder", "confirm_settlement", result);
 
   return NextResponse.json(result);
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { registerToolSafely } from "@/lib/webmcp/registerToolSafely";
 
 const STATUS_META = {
@@ -13,7 +14,10 @@ const STATUS_META = {
   settlement_declined: { label: "Settlement declined", color: "red" }
 };
 
+const STORAGE_KEY = "insurasync_active_claim_id";
+
 export default function PolicyholderPage() {
+  const searchParams = useSearchParams();
   const [claim, setClaim] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -26,17 +30,29 @@ export default function PolicyholderPage() {
     }
   }, []);
 
-  useEffect(() => {
-    (async () => {
-      const res = await fetch("/api/claims");
-      if (res.ok) {
-        const data = await res.json();
-        if (data.claims && data.claims.length > 0) {
-          setClaim(data.claims[0]); // most recent, since listClaims() sorts newest first
-        }
-      }
-    })();
+  const rememberClaim = useCallback((claimId) => {
+    if (typeof window !== "undefined" && claimId) {
+      window.localStorage.setItem(STORAGE_KEY, claimId);
+    }
   }, []);
+
+  // Resolve which claim this page should show, in priority order:
+  // 1. An explicit ?claim=CLM-XXXX in the URL (lets any page be opened
+  //    directly to a specific claim — useful for demos and for an
+  //    agent that already knows the claim_id).
+  // 2. The last claim this browser filed, remembered via localStorage.
+  // 3. Otherwise, no active claim — the page shows its empty state.
+  useEffect(() => {
+    const urlClaimId = searchParams.get("claim");
+    const storedClaimId =
+      typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null;
+    const targetId = urlClaimId || storedClaimId;
+
+    if (targetId) {
+      refreshClaim(targetId);
+      if (urlClaimId) rememberClaim(urlClaimId);
+    }
+  }, [searchParams, refreshClaim, rememberClaim]);
 
   useEffect(() => {
     if (!claim?.claim_id) return;
@@ -84,6 +100,7 @@ export default function PolicyholderPage() {
             const data = await res.json();
             if (!res.ok) return { success: false, error: data.error };
             setClaim(data.claim);
+            rememberClaim(data.claim_id);
             return { success: true, claim_id: data.claim_id, status: data.status };
           } finally {
             setLoading(false);
@@ -147,7 +164,7 @@ export default function PolicyholderPage() {
     );
 
     return () => cleanups.forEach((fn) => fn());
-  }, [refreshClaim]);
+  }, [refreshClaim, rememberClaim]);
 
   const handleConfirm = async (accept) => {
     if (!claim?.claim_id) return;

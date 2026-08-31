@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClaim, listClaims } from "@/lib/mockData/claimStore";
 
-// POST /api/claims — creates a new claim from a structured incident report.
-// Backs the policyholder's `submit_incident_report` WebMCP tool.
 export async function POST(request) {
   const body = await request.json();
   const { incident_type, date, description, photos, estimated_severity } = body;
@@ -14,7 +12,7 @@ export async function POST(request) {
     );
   }
 
-  const claim = createClaim({
+  const claim = await createClaim({
     incident_type,
     date,
     description,
@@ -25,8 +23,7 @@ export async function POST(request) {
   return NextResponse.json({ claim_id: claim.claim_id, status: claim.status, claim });
 }
 
-// GET /api/claims — lists all claims, most recent first.
-// Backs the shared live negotiation log view.
 export async function GET() {
-  return NextResponse.json({ claims: listClaims() });
+  const claims = await listClaims();
+  return NextResponse.json({ claims });
 }

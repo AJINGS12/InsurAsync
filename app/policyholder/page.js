@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { registerToolSafely } from "@/lib/webmcp/registerToolSafely";
 
@@ -18,7 +18,7 @@ const STATUS_META = {
 
 const STORAGE_KEY = "insurasync_active_claim_id";
 
-export default function PolicyholderPage() {
+function PolicyholderPageContent() {
   const searchParams = useSearchParams();
   const [claim, setClaim] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -260,5 +260,13 @@ export default function PolicyholderPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function PolicyholderPage() {
+  return (
+    <Suspense fallback={<main className="container" style={{ paddingTop: "2.5rem" }}>Loading…</main>}>
+      <PolicyholderPageContent />
+    </Suspense>
   );
 }
